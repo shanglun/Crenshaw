@@ -72,7 +72,13 @@ begin
      GetChar;
 end;
 
+procedure Expression;
+begin
+     EmitLn('Move #' + GetNum + ',D0')
+end;
+
 {--------Main program-------}
 begin
      Init;
+     Expression
 end.
