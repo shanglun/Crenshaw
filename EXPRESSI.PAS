@@ -1,6 +1,7 @@
 program Cradle;
 const
 TAB = ^I;
+CR = ^M;
 var
 Look: char; {global lookahead char}
 
@@ -35,6 +36,11 @@ end;
 function IsAlpha(c: char): boolean;
 begin
      IsAlpha := upcase(c) in ['A'..'Z'];
+end;
+
+function IsAlNum(c: char): boolean;
+begin
+     IsAlNum := IsAlpha(c) or IsDigit(c);
 end;
 
 function IsDigit(c: char): boolean;
@@ -77,6 +83,19 @@ begin
      IsAddop := c in ['+', '-'];
 end;
 
+procedure Ident;
+var Name: char;
+begin
+     Name := GetName;
+     if Look = '(' then begin
+        Match('(');
+        Match(')');
+        EmitLn('BSR ' + Name);
+        end
+     else
+         EmitLn('Move ' + Name  + '(PC),D0')
+end;
+
 procedure Expression; Forward;
 
 procedure Factor;
@@ -85,7 +104,9 @@ begin
         Match('(');
         Expression;
         Match(')');
-        end
+     end
+     else if IsAlpha(Look) then
+          EmitLn('Move ' + GetName + '(PC),D0')
      else
          EmitLn('MOVE #' + GetNum + ',D0');
 end;
@@ -153,8 +174,19 @@ begin
      end;
 end;
 
+procedure Assignment;
+var Name: char;
+begin
+     Name := GetName;
+     Match('=');
+     Expression;
+     EmitLn('LEA ' + Name + '(PC), A0');
+     EmitLn('MOVE D0, (A0)')
+end;
+
 {--------Main program-------}
 begin
      Init;
-     Expression
+     Assignment;
+     if Look <> CR then Expected('Newline');
 end.

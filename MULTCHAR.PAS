@@ -1,4 +1,4 @@
-program Cradle;
+program parse;
 const
 TAB = ^I;
 CR = ^M;
@@ -27,15 +27,9 @@ begin
      Abort(s+' Expected');
 end;
 
-procedure Match(x:char);
+function isWhite(c:char): boolean;
 begin
-     if Look = x then GetChar
-     else Expected('"' + x + '"');
-end;
-
-function IsAlpha(c: char): boolean;
-begin
-     IsAlpha := upcase(c) in ['A'..'Z'];
+     IsWhite := c in [' ', TAB];
 end;
 
 function IsDigit(c: char): boolean;
@@ -43,18 +37,56 @@ begin
      IsDigit := c in ['0'..'9'];
 end;
 
-function GetName: char;{Get an identifier}
+function IsAlpha(c: char): boolean;
 begin
-     if not IsAlpha(Look) then Expected('Name');
-     GetName:=UpCase(Look);
-     GetChar;
+     IsAlpha := upcase(c) in ['A'..'Z'];
 end;
 
-function GetNum: char;
+function IsAlNum(c: char): boolean;
 begin
-     if not IsDigit(Look) then expected('Integer');
-     GetNum := Look;
-     GetChar;
+     IsAlNum := IsAlpha(c) or IsDigit(c);
+end;
+
+procedure SkipWhite;
+begin
+     while IsWhite(Look) do
+           GetChar;
+end;
+
+procedure Match(x:char);
+begin
+     if Look <> x then
+        Expected('"' + x + '"')
+     else begin
+        GetChar;
+        SkipWhite;
+     end;
+end;
+
+function GetName: string;{Get an identifier}
+var Token: string;
+begin
+     Token := '';
+     if not IsAlpha(Look) then Expected('Name');
+     while IsAlNum(Look) do begin
+           Token := Token + UpCase(Look);
+           GetChar;
+     end;
+     GetName:=Token;
+     SkipWhite;
+end;
+
+function GetNum: string;
+var Value: string;
+begin
+     Value :='';
+     if not IsDigit(Look) then Expected('Integer');
+     while IsDigit(Look) do begin
+           Value := Value + Look;
+           GetChar;
+     end;
+     GetNum := Value;
+     SkipWhite;
 end;
 
 procedure Emit(s:string);
@@ -71,6 +103,7 @@ end;
 procedure Init;
 begin
      GetChar;
+     SkipWhite;
 end;
 
 function IsAddop(c: char): boolean;
@@ -79,7 +112,7 @@ begin
 end;
 
 procedure Ident;
-var Name: char;
+var Name: string;
 begin
      Name := GetName;
      if Look = '(' then begin
@@ -170,7 +203,7 @@ begin
 end;
 
 procedure Assignment;
-var Name: char;
+var Name: string;
 begin
      Name := GetName;
      Match('=');

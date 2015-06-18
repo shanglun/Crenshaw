@@ -42,6 +42,11 @@ begin
      IsDigit := c in ['0'..'9'];
 end;
 
+function IsAlNum(c: char): boolean;
+begin
+     IsAlNum := IsAlpha(c) or IsDigit(c);
+end;
+
 function GetName: char;{Get an identifier}
 begin
      if not IsAlpha(Look) then Expected('Name');
