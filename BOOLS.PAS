@@ -1,8 +1,6 @@
 program Cradle;
 const
 TAB = ^I;
-CR = ^M;
-LF = ^J;
 var
 Look: char; {global lookahead char}
 
@@ -39,14 +37,14 @@ begin
      IsAlpha := upcase(c) in ['A'..'Z'];
 end;
 
-function IsAlNum(c: char): boolean;
-begin
-     IsAlNum := IsAlpha(c) or IsDigit(c);
-end;
-
 function IsDigit(c: char): boolean;
 begin
      IsDigit := c in ['0'..'9'];
+end;
+
+function IsAlNum(c: char): boolean;
+begin
+     IsAlNum := IsAlpha(c) or IsDigit(c);
 end;
 
 function GetName: char;{Get an identifier}
@@ -78,6 +76,23 @@ procedure Init;
 begin
      GetChar;
 end;
+
+
+function IsBoolean(c: char): Boolean;
+begin
+	Isboolean := UpCase(c) in ['T','F'];
+end;
+
+function GetBoolean: boolean;
+var
+c: char;
+begin
+	if not IsBoolean(Look) then Expected('Boolean Literal');
+	GetBoolean := UpCase(Look) = 'T';
+	GetChar;
+end;
+
+{Expression stuff goes here.}
 
 function IsAddop(c: char): boolean;
 begin
@@ -174,20 +189,130 @@ begin
           end;
      end;
 end;
+{Assignments}
 
-procedure Assignment;
-var Name: char;
+
+{relops and boolean operators.}
+
+procedure Equals;
 begin
-     Name := GetName;
      Match('=');
      Expression;
-     EmitLn('LEA ' + Name + '(PC), A0');
-     EmitLn('MOVE D0, (A0)')
+     EmitLn('CMP (SP)+,D0');
+     EmitLn('SEQ D0');
 end;
+
+procedure NotEquals;
+begin
+     Match('#');
+     Expression;
+     EmitLn('CMP (SP)+,D0');
+     EmitLn('SNE D0');
+end;
+
+procedure Less;
+begin
+     Match('<');
+     Expression;
+     EmitLn('CMP (SP)+, D0');
+     EmitLn('SGE D0');
+end;
+
+procedure Greater;
+begin
+     Match('>');
+     Expression;
+     EmitLn('CMP (SP)+,D0');
+     EmitLn('SLE D0');
+end;
+
+function IsRelop(c:char):Boolean;
+begin
+     IsRelop:=c in ['=','#','<','>'];
+end;
+
+procedure Relation;
+begin
+     Expression;
+     if IsRelop(Look) then begin
+        EmitLn('MOVE D0, -(SP)');
+        case Look of
+        '=': Equals;
+        '#': NotEquals;
+        '<': Less;
+        '>': Greater;
+        end;
+     EmitLn('TST D0');
+     end;
+end;
+
+procedure BoolFactor;
+begin
+	if IsBoolean(Look) then
+	   if GetBoolean then EmitLn('Move #-1,D0')
+	   else EmitLn('CLR D0')
+        else
+            Relation;
+
+end;
+
+procedure NotFactor;
+begin
+     if Look = '!' then begin
+        Match('!');
+        BoolFactor;
+        EmitLn('EOR #-1,D0');
+        end
+     else
+         BoolFactor;
+end;
+
+procedure BoolTerm;
+begin
+     NotFactor;
+     while Look = '&' do begin
+           EmitLn('Move D0,-(SP)');
+           Match('&');
+           NotFactor;
+           EmitLn('AND (SP)+, D0');
+     end;
+end;
+
+procedure BoolOr;
+begin
+	Match('|');
+	BoolTerm;
+	EmitLn('OR (SP)+,D0');
+end;
+
+procedure BoolXOr;
+begin
+	Match('~');
+	BoolTerm;
+	EmitLn('EOR (SP)+,D0');
+end;
+
+function IsOrOp(c: char): Boolean;
+begin
+     IsOrop := c in ['|','~'];
+end;
+
+procedure BoolExpression;
+begin
+     BoolTerm;
+     while IsOrOp(Look) do begin
+           EmitLn('Move D0, -(SP)');
+           case Look of
+                '|': BoolOr;
+                '~': BoolXOr;
+           end;
+     end;
+end;
+
+
 
 {--------Main program-------}
 begin
      Init;
-     Assignment;
-     if Look <> CR then Expected('Newline');
+     BoolExpression;
 end.
