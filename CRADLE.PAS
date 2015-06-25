@@ -1,6 +1,8 @@
 program Cradle;
 const
 TAB = ^I;
+CR = ^M;
+LF = ^J;
 var
 Look: char; {global lookahead char}
 
@@ -47,18 +49,45 @@ begin
      IsAlNum := IsAlpha(c) or IsDigit(c);
 end;
 
-function GetName: char;{Get an identifier}
+function GetName: string;{Get an identifier}
+var x: string[8];
 begin
+     x:= '';
      if not IsAlpha(Look) then Expected('Name');
-     GetName:=UpCase(Look);
-     GetChar;
+     while IsAlNum(Look) do begin
+           x:= x + UpCase(Look);
+           GetChar;
+     end;
+     GetName:=x;
 end;
 
-function GetNum: char;
+function GetNum: string;
+var x: string[16];
 begin
+     x:='';
      if not IsDigit(Look) then expected('Integer');
-     GetNum := Look;
-     GetChar;
+     while IsDigit(Look) do begin
+           x:=x + Look;
+           GetChar;
+     end;
+     GetNum := x;
+end;
+
+function IsWhite(c: char): boolean;
+begin
+   IsWhite := c in [' ', TAB];
+end;
+
+procedure SkipWhite;
+begin
+   while IsWhite(Look) do
+      GetChar;
+end;
+
+procedure Fin;
+begin
+   if Look = CR then GetChar;
+   if Look = LF then GetChar;
 end;
 
 procedure Emit(s:string);
@@ -70,6 +99,19 @@ procedure EmitLn(s:string);
 begin
      Emit(s);
      WriteLn;
+end;
+
+function Scan: string;
+begin
+     if IsAlpha(Look) then
+        Scan := GetName
+     else if isDigit(Look) then
+        Scan := GetNum
+     else begin
+          Scan := Look;
+          Getchar;
+     end;
+     SkipWhite;
 end;
 
 procedure Init;
